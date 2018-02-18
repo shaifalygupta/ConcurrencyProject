@@ -6,7 +6,7 @@ import (
 	Crw "ConcurrencyProject/CreateWorkGroup"
 )
 /**
-This Go  file is uesed to allocate the jobs and also calls the function
+This Go  file is used to allocate the jobs and also calls the function
 to create Workers pool to process jobs .
  */
 func main() {

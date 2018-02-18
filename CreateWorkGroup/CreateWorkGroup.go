@@ -17,7 +17,7 @@ func worker(wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-//created 3 workers for reading csv file and do the task
+//created 3 workers for reading csv file/MSMQ data and do the task
 func CreateWorkerPool(noOfWorkers int) {
 	var wg sync.WaitGroup
 	for i := 0; i < noOfWorkers; i++ {
