@@ -41,8 +41,7 @@ var Results = make(chan Result,5)
 //For CSV we move csv file to other location after creating task
 //and sleep till next csv is coming
 func Allocate() {
-	count:= 0;
-	//data in config file MSMQ/CSV
+	//Read data from config file which will decide what will be the source of job creation i.e. MSMQ/CSV
 	Configfilename,_ := filepath.Abs("../ConcurrencyProject/Config.txt")
 	bs,err:=ioutil.ReadFile(Configfilename)
 	if err!=nil{
@@ -54,97 +53,12 @@ func Allocate() {
 
 
 	if n_Config == "MSMQ"{
-		conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-		failOnError(err, "Failed to connect to RabbitMQ")
-		defer conn.Close()
-
-		ch, err1 := conn.Channel()
-		failOnError(err1, "Failed to open a channel")
-		defer ch.Close()
-
-		q, err1 := ch.QueueDeclare(
-			"GoQueue", // name
-			true,   // durable
-			false,   // delete when unused
-			false,   // exclusive
-			false,   // no-wait
-			nil,     // arguments
-		)
-		failOnError(err, "Failed to declare a queue")
-
-		log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-			msgs, err := ch.Consume(
-				q.Name, // queue
-				"",     // consumer
-				true,   // auto-ack
-				false,  // exclusive
-				false,  // no-local
-				false,  // no-wait
-				nil,    // args
-			)
-			failOnError(err, "Failed to register a consumer")
-
-			for d := range msgs {
-				//log.Printf("Received a message: %s", d.Body)
-				//for i, line := range lines {
-				//if i > 0 {
-				line:=strings.Split(string(d.Body),",")
-				n_value, _ := strconv.Atoi(line[4]);
-				EPData := EPGData{line[0], line[1], line[2], line[3], n_value, line[5], line[6], line[7],}
-				EPGDataList <- EPData
-				//}
-				//}
-			}
-
-	}
-	if n_Config == "CSV" {
-		for {
-			filename, _ := filepath.Abs("../ConcurrencyProject/test.csv")
-
-			// Open CSV file
-			if Exists(filename) {
-				f, err := os.Open(filename)
-				if err != nil {
-					//panic(err)
-					fmt.Println("Error in File Open")
-					time.Sleep(5 * time.Second);
-				}
-				// Read File into a Variable
-				lines, err := csv.NewReader(f).ReadAll()
-				if err != nil {
-					//panic(err)
-					fmt.Println("Error in File Reading")
-					time.Sleep(5 * time.Second);
-				}
-				f.Close()
-
-				// Loop through lines & turn into object
-				for i, line := range lines {
-					if i > 0 {
-						n_value, _ := strconv.Atoi(line[4]);
-						EPData := EPGData{line[0], line[1], line[2], line[3], n_value, line[5], line[6], line[7],}
-						EPGDataList <- EPData
-					}
-				}
-
-				//close(EPGDataList)
-				//"+strconv.Itoa(count)+"
-				nPath, _ := filepath.Abs("../ConcurrencyProject/ReadData/test.csv")
-				Copy(filename, nPath)
-
-				if (len(lines) == 0) {
-					time.Sleep(5 * time.Second);
-					fmt.Println("Mesaage waiting")
-
-				}
-			} else {
-				time.Sleep(5 * time.Second);
-				fmt.Println("Mesaage waiting")
-			}
-
-			count++
-
-		}
+		AllocateByMSMQ()
+	}else if n_Config == "CSV" {
+		AllocateByCSV()
+	}else {
+		fmt.Println("Please mention Source as CSV or MSMQ for creating jobs")
+		os.Exit(1)
 	}
 }
 
@@ -187,4 +101,100 @@ func failOnError(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
 	}
+}
+
+func AllocateByCSV(){
+	count:= 0;
+	for {
+		filename, _ := filepath.Abs("../ConcurrencyProject/test.csv")
+
+		// Open CSV file
+		if Exists(filename) {
+			f, err := os.Open(filename)
+			if err != nil {
+				//panic(err)
+				fmt.Println("Error in File Open")
+				time.Sleep(5 * time.Second);
+			}
+			// Read File into a Variable
+			lines, err := csv.NewReader(f).ReadAll()
+			if err != nil {
+				//panic(err)
+				fmt.Println("Error in File Reading")
+				time.Sleep(5 * time.Second);
+			}
+			f.Close()
+
+			// Loop through lines & turn into object
+			for i, line := range lines {
+				if i > 0 {
+					n_value, _ := strconv.Atoi(line[4]);
+					EPData := EPGData{line[0], line[1], line[2], line[3], n_value, line[5], line[6], line[7],}
+					EPGDataList <- EPData
+				}
+			}
+
+			//close(EPGDataList)
+			//"+strconv.Itoa(count)+"
+			nPath, _ := filepath.Abs("../ConcurrencyProject/ReadData/test.csv")
+			Copy(filename, nPath)
+
+			if (len(lines) == 0) {
+				time.Sleep(5 * time.Second);
+				fmt.Println("Mesaage waiting")
+
+			}
+		} else {
+			time.Sleep(5 * time.Second);
+			fmt.Println("Mesaage waiting")
+		}
+
+		count++
+
+	}
+}
+
+func AllocateByMSMQ(){
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer conn.Close()
+
+	ch, err1 := conn.Channel()
+	failOnError(err1, "Failed to open a channel")
+	defer ch.Close()
+
+	q, err1 := ch.QueueDeclare(
+		"GoQueue", // name
+		true,   // durable
+		false,   // delete when unused
+		false,   // exclusive
+		false,   // no-wait
+		nil,     // arguments
+	)
+	failOnError(err, "Failed to declare a queue")
+
+	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	msgs, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	failOnError(err, "Failed to register a consumer")
+
+	for d := range msgs {
+		//log.Printf("Received a message: %s", d.Body)
+		//for i, line := range lines {
+		//if i > 0 {
+		line:=strings.Split(string(d.Body),",")
+		n_value, _ := strconv.Atoi(line[4]);
+		EPData := EPGData{line[0], line[1], line[2], line[3], n_value, line[5], line[6], line[7],}
+		EPGDataList <- EPData
+		//}
+		//}
+	}
+
 }
