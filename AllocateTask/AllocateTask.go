@@ -171,7 +171,7 @@ func AllocateByMSMQ(){
 		false,   // no-wait
 		nil,     // arguments
 	)
-	failOnError(err, "Failed to declare a queue")
+	failOnError(err1, "Failed to declare a queue")
 
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 	msgs, err := ch.Consume(
